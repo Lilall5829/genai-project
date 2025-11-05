@@ -1,0 +1,16 @@
+# GenAI Project Dependencies
+# Main requirements for all services
+
+# API Service
+fastapi
+uvicorn[standard]
+python-dotenv
+openai
+
+# Add other services dependencies here as needed
+# RAG Service
+# ...
+
+# Agents Service
+# ...
+
