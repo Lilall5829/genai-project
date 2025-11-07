@@ -7,6 +7,9 @@ uvicorn[standard]
 python-dotenv
 openai
 
+# Optional Dependencies:
+# - For local models: pip install -r requirements-local.txt
+
 # Add other services dependencies here as needed
 # RAG Service
 # ...

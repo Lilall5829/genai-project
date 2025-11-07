@@ -1,0 +1,14 @@
+# Local Model Dependencies (Optional)
+# Install with: pip install -r requirements-local.txt
+
+# Core transformers stack
+transformers>=4.44
+torch>=2.2
+accelerate>=0.30
+safetensors
+sentencepiece
+
+# Optional: for better performance
+# bitsandbytes  # For 8-bit/4-bit quantization (Linux/WSL only)
+# flash-attn    # For faster attention (requires specific GPU)
+
