@@ -5,11 +5,13 @@ A modern AI-powered API service built with FastAPI, supporting both cloud-based 
 ## Features
 
 - 🚀 **Fast & Modern**: Built with FastAPI for high performance
-- 🤖 **Flexible AI Backend**: Support for OpenAI API and local models
+- 🤖 **Flexible AI Backend**: Support for OpenAI API and local models (TinyLlama)
+- 💻 **CPU-Only Local Inference**: Run models without GPU (2-3GB RAM)
 - 📡 **Streaming Support**: Real-time SSE streaming responses
 - 🔧 **Easy Configuration**: Environment-based configuration
 - 🐳 **Docker Ready**: Containerized deployment support
 - 🎯 **Type Safe**: Full type hints with Pydantic validation
+- 🐛 **Debug Mode**: Built-in debugging information for local models
 
 ## Project Structure
 
@@ -20,7 +22,8 @@ genai-project/
 │   │   ├── src/
 │   │   │   ├── main.py         # FastAPI application
 │   │   │   └── routes/         # API routes
-│   │   │       └── openai_routes.py
+│   │   │       ├── openai_routes.py  # OpenAI API endpoints
+│   │   │       └── local_routes.py   # Local model endpoints
 │   │   ├── Dockerfile          # Docker configuration
 │   │   └── requirements.txt    # API dependencies
 │   ├── rag/                    # RAG service (future)
@@ -33,6 +36,8 @@ genai-project/
 ├── .env.example                # Environment variables template
 ├── requirements.txt            # Base dependencies
 ├── requirements-local.txt      # Local model dependencies (optional)
+├── test_local.json             # Example test data for local model
+├── test_tinyllama.py           # TinyLlama model testing script
 └── README.md                   # This file
 ```
 
@@ -203,6 +208,66 @@ Invoke-RestMethod -Uri "http://localhost:8000/generate" `
   -Body $body
 ```
 
+### Local Model Generation
+
+Run AI models locally on your machine (requires `requirements-local.txt`).
+
+**Endpoint:** `POST /local/generate`
+
+**Request Body:**
+
+```json
+{
+  "prompt": "What is Python?",
+  "temperature": 0.0,
+  "top_p": 0.9,
+  "max_tokens": 100
+}
+```
+
+**Parameters:**
+- `prompt` (string, required): The text prompt to generate from
+- `temperature` (float, optional): 0.0 for deterministic, >0 for creative (default: 0.0)
+- `top_p` (float, optional): Nucleus sampling parameter (default: 0.9)
+- `max_tokens` (int, optional): Maximum tokens to generate (default: 500)
+
+**Response:**
+
+```json
+{
+  "response": "Python is a high-level programming language...",
+  "debug": {
+    "temperature": 0.0,
+    "do_sample": false,
+    "input_length": 30,
+    "output_length": 130,
+    "new_tokens_count": 100,
+    "first_10_token_ids": [5132, 338, 263, ...]
+  }
+}
+```
+
+**Example (using JSON file on Windows):**
+
+```powershell
+# Create test_local.json
+@"
+{
+  "prompt": "Explain machine learning",
+  "max_tokens": 100
+}
+"@ | Out-File -Encoding UTF8 test_local.json
+
+# Test the endpoint
+curl.exe -X POST "http://localhost:8000/local/generate" -H "Content-Type: application/json" -d "@test_local.json"
+```
+
+**Notes:**
+- The local model (TinyLlama-1.1B-Chat) loads on startup (~1-2 minutes)
+- Runs on CPU (no GPU required)
+- Uses ~2-3GB RAM
+- Prompts are automatically wrapped in chat format
+
 ## Docker Deployment
 
 ### Using Docker Compose
@@ -366,14 +431,85 @@ Change the port in the uvicorn command:
 uvicorn apps.api.src.main:app --reload --port 8001
 ```
 
+**4. Local Model Returns Empty Response**
+
+If the local model endpoint `/local/generate` returns empty responses, check:
+
+- **Ensure Chat Format**: TinyLlama-Chat expects specific format. The API automatically wraps prompts, but if manually testing, use:
+  ```python
+  prompt = """<|system|>
+  You are a helpful assistant.</s>
+  <|user|>
+  Your question here</s>
+  <|assistant|>
+  """
+  ```
+
+- **Check pad_token**: Make sure `tokenizer.pad_token` is set (automatically handled in code):
+  ```python
+  if tokenizer.pad_token is None:
+      tokenizer.pad_token = tokenizer.eos_token
+  ```
+
+- **Use Deterministic Generation**: Set `temperature=0.0` for consistent results (default behavior)
+
+**5. PowerShell curl Testing Issues**
+
+When testing with curl on Windows PowerShell, JSON escaping can cause issues:
+
+**Problem:**
+```powershell
+# This may fail due to escaping issues
+curl.exe -d '{\"prompt\": \"test\", \"max_tokens\": 50}'
+```
+
+**Solution 1: Use JSON file (Recommended)**
+```powershell
+# Create test_local.json:
+{
+  "prompt": "What is Python?",
+  "max_tokens": 50
+}
+
+# Test with:
+curl.exe -X POST "http://localhost:8000/local/generate" -H "Content-Type: application/json" -d "@test_local.json"
+```
+
+**Solution 2: Use PowerShell's Invoke-RestMethod**
+```powershell
+$body = @{
+    prompt = "What is Python?"
+    max_tokens = 50
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:8000/local/generate" -Method Post -Body $body -ContentType "application/json"
+```
+
+**Solution 3: Use Swagger UI**
+
+Navigate to `http://localhost:8000/docs` and test directly in the browser.
+
+**6. localhost vs 127.0.0.1 Issues**
+
+If `localhost` doesn't work but `127.0.0.1` does, start uvicorn with:
+
+```bash
+# Listen on all interfaces (IPv4 and IPv6)
+uvicorn apps.api.src.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+This ensures the service responds to both IPv4 and IPv6 addresses.
+
 ## Technologies
 
 - **FastAPI**: Modern web framework for building APIs
 - **Uvicorn**: ASGI server
 - **OpenAI**: Cloud-based AI models
-- **Transformers**: Local model support (optional)
+- **Transformers**: Hugging Face library for local model support
+- **PyTorch**: Deep learning framework for model inference
+- **TinyLlama**: Lightweight 1.1B parameter chat model
 - **Docker**: Containerization
-- **Pydantic**: Data validation
+- **Pydantic**: Data validation and settings management
 
 ## Roadmap
 
