@@ -46,10 +46,10 @@ async def generate(request: ChatRequest, stream: bool = False):
             
             for event in stream_response:
                 if getattr(event, "type", "") == "response.output_text.delta":
-                    # Standard SSE format
+                    
                     # yield f"data: {event.delta}\n\n"
                     yield event.delta
-        
+        # Standard SSE format
         return StreamingResponse(event_generator(), media_type="text/event-stream")
     else:
         # Normal output

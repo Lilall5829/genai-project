@@ -34,10 +34,9 @@ genai-project/
 │   └── cases/                  # Evaluation test cases
 ├── reports/                    # Test reports
 ├── .env.example                # Environment variables template
-├── requirements.txt            # Base dependencies
+├── requirements.txt            # Production dependencies
+├── requirements-dev.txt        # Development dependencies (optional)
 ├── requirements-local.txt      # Local model dependencies (optional)
-├── test_local.json             # Example test data for local model
-├── test_tinyllama.py           # TinyLlama model testing script
 └── README.md                   # This file
 ```
 
@@ -82,6 +81,18 @@ pip install -r requirements.txt
 
 ```bash
 pip install -r requirements-local.txt
+```
+
+**With development tools (optional, for testing):**
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+**Install all dependencies:**
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt -r requirements-local.txt
 ```
 
 #### 4. Configure environment
@@ -235,31 +246,67 @@ Run AI models locally on your machine (requires `requirements-local.txt`).
 
 ```json
 {
-  "response": "Python is a high-level programming language...",
-  "debug": {
-    "temperature": 0.0,
-    "do_sample": false,
-    "input_length": 30,
-    "output_length": 130,
-    "new_tokens_count": 100,
-    "first_10_token_ids": [5132, 338, 263, ...]
-  }
+  "response": "Python is a high-level programming language designed for readability and simplicity. It supports multiple programming paradigms including procedural, object-oriented, and functional programming..."
 }
 ```
 
-**Example (using JSON file on Windows):**
+**Example with curl (Windows):**
 
 ```powershell
-# Create test_local.json
-@"
+curl.exe -X POST "http://localhost:8000/local/generate" -H "Content-Type: application/json" -d '{\"prompt\": \"What is Python?\", \"max_tokens\": 100, \"temperature\": 0.0}'
+```
+
+#### Streaming Mode
+
+Enable real-time streaming output by adding `?stream=true` query parameter.
+
+**Endpoint:** `POST /local/generate?stream=true`
+
+**Request (same as above):**
+
+```json
 {
-  "prompt": "Explain machine learning",
+  "prompt": "Write a short story",
+  "temperature": 0.7,
   "max_tokens": 100
 }
-"@ | Out-File -Encoding UTF8 test_local.json
+```
 
-# Test the endpoint
-curl.exe -X POST "http://localhost:8000/local/generate" -H "Content-Type: application/json" -d "@test_local.json"
+**Response (Server-Sent Events):**
+
+Text chunks are streamed in real-time as they are generated:
+
+```
+Once
+ upon
+ a
+ time
+,
+ there
+ was
+...
+```
+
+**Example with curl:**
+
+```powershell
+curl.exe --no-buffer -X POST "http://localhost:8000/local/generate?stream=true" -H "Content-Type: application/json" -d '{\"prompt\": \"Tell me a joke\", \"max_tokens\": 50, \"temperature\": 0.7}'
+```
+
+**Example with Python (requires `requests`):**
+
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:8000/local/generate?stream=true",
+    json={"prompt": "Hello", "max_tokens": 50, "temperature": 0.7},
+    stream=True
+)
+
+for chunk in response.iter_content(chunk_size=1, decode_unicode=True):
+    if chunk:
+        print(chunk, end='', flush=True)
 ```
 
 **Notes:**
@@ -267,6 +314,7 @@ curl.exe -X POST "http://localhost:8000/local/generate" -H "Content-Type: applic
 - Runs on CPU (no GPU required)
 - Uses ~2-3GB RAM
 - Prompts are automatically wrapped in chat format
+- Streaming uses background threads for non-blocking generation
 
 ## Docker Deployment
 
