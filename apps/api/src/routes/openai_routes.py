@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 import os
 from dotenv import load_dotenv
+from ..exceptions import InvalidInputError, InternalError
 
 load_dotenv()
 client = OpenAI()
@@ -19,7 +20,11 @@ class ChatRequest(BaseModel):
     @classmethod
     def validate_prompt(cls, v):
         if len(v) > 1000:
-            raise ValueError("Prompt must be less than 1000 characters")
+            raise InvalidInputError(
+                message="Prompt must be less than 1000 characters",
+                field ="prompt",
+                details = {"max_length": 1000, "actual_length": len(v)}
+            )
         return v
 
 @router.post("/generate")
@@ -32,7 +37,32 @@ async def generate(request: ChatRequest, stream: bool = False):
     if stream:
         # SSE streaming output
         def event_generator():
-            stream_response = client.responses.create(
+            try:
+                stream_response = client.responses.create(
+                    model="gpt-4o-mini",
+                    input=[
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": request.prompt},
+                    ],
+                    temperature=request.temperature,
+                    top_p=request.top_p,
+                    max_output_tokens=request.max_tokens,
+                    stream=True
+                )
+                
+                for event in stream_response:
+                    if getattr(event, "type", "") == "response.output_text.delta":
+                        # yield f"data: {event.delta}\n\n"
+                        yield event.delta
+            except Exception as e:
+                print(f"Streaming error: {str(e)}")
+                yield f"\n[ERROR] Failed to generate response: {str(e)}"
+        # Standard SSE format
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+    else:
+        try:
+            # Normal output
+            response = client.responses.create(
                 model="gpt-4o-mini",
                 input=[
                     {"role": "system", "content": "You are a helpful assistant."},
@@ -40,27 +70,11 @@ async def generate(request: ChatRequest, stream: bool = False):
                 ],
                 temperature=request.temperature,
                 top_p=request.top_p,
-                max_output_tokens=request.max_tokens,
-                stream=True
+                max_output_tokens=request.max_tokens
             )
-            
-            for event in stream_response:
-                if getattr(event, "type", "") == "response.output_text.delta":
-                    
-                    # yield f"data: {event.delta}\n\n"
-                    yield event.delta
-        # Standard SSE format
-        return StreamingResponse(event_generator(), media_type="text/event-stream")
-    else:
-        # Normal output
-        response = client.responses.create(
-            model="gpt-4o-mini",
-            input=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": request.prompt},
-            ],
-            temperature=request.temperature,
-            top_p=request.top_p,
-            max_output_tokens=request.max_tokens
-        )
-        return {"response": response.output[0].content[0].text}
+            return {"response": response.output[0].content[0].text}
+        except Exception as e:
+            raise InternalError(
+                message="Error generating response from OpenAI API",
+                details=str(e)
+            )

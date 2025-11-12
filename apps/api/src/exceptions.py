@@ -17,7 +17,13 @@ class APIException(Exception):
         status_code: int = 400,
         field: Optional[str] = None,
         details: Optional[Any] = None,
-    )
+    ):
+        self.error_code = error_code
+        self.message = message
+        self.status_code = status_code
+        self.field = field
+        self.details = details
+        super().__init__(message)
 
 class InvalidInputError(APIException):
     def __init__(

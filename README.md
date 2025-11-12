@@ -570,18 +570,6 @@ This ensures the service responds to both IPv4 and IPv6 addresses.
 - [ ] Monitoring & logging
 - [ ] Multi-model routing
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Support
-
-For issues and questions, please open an issue on GitHub.
-
 ---
 
 **Made with ❤️ using FastAPI and OpenAI**

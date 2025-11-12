@@ -1,10 +1,11 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 import torch
 import threading
+from ..exceptions import InvalidInputError, InternalError
 
 router = APIRouter(prefix="/local", tags=["local"])
 
