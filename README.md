@@ -11,7 +11,10 @@ A modern AI-powered API service built with FastAPI, supporting both cloud-based 
 - 🔧 **Easy Configuration**: Environment-based configuration
 - 🐳 **Docker Ready**: Containerized deployment support
 - 🎯 **Type Safe**: Full type hints with Pydantic validation
-- 🐛 **Debug Mode**: Built-in debugging information for local models
+- 🛡️ **Error Handling**: Unified error response format with custom exceptions
+- ⏱️ **Timeout & Retry**: Automatic retry with exponential backoff for API calls
+- 🚦 **Rate Limiting**: IP-based rate limiting to prevent API abuse
+- ✅ **Input Validation**: Comprehensive parameter validation with detailed error messages
 
 ## Project Structure
 
@@ -21,6 +24,7 @@ genai-project/
 │   ├── api/                    # API service
 │   │   ├── src/
 │   │   │   ├── main.py         # FastAPI application
+│   │   │   ├── exceptions.py   # Custom exception classes
 │   │   │   └── routes/         # API routes
 │   │   │       ├── openai_routes.py  # OpenAI API endpoints
 │   │   │       └── local_routes.py   # Local model endpoints
@@ -316,6 +320,124 @@ for chunk in response.iter_content(chunk_size=1, decode_unicode=True):
 - Prompts are automatically wrapped in chat format
 - Streaming uses background threads for non-blocking generation
 
+## Error Handling
+
+The API provides unified error responses in JSON format for better debugging and error tracking.
+
+### Error Response Format
+
+All errors follow this consistent structure:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "status": 422,
+    "field": "field_name",
+    "details": {
+      "additional": "information"
+    }
+  }
+}
+```
+
+### Error Codes
+
+| Code | HTTP Status | Description |
+|------|-------------|-------------|
+| `INVALID_JSON` | 422 | Malformed JSON request body |
+| `MISSING_REQUIRED_FIELD` | 422 | Required field missing from request |
+| `INVALID_TYPE` | 422 | Field has wrong data type |
+| `INVALID_VALUE` | 422 | Field value is invalid or out of range |
+| `NOT_FOUND` | 404 | Endpoint or resource not found |
+| `RATE_LIMIT_EXCEEDED` | 429 | Too many requests, slow down |
+| `INTERNAL_ERROR` | 500 | Server-side error occurred |
+| `TIMEOUT` | 504 | Request timed out |
+
+### Input Validation
+
+All endpoints validate input parameters:
+
+**OpenAI Routes (`/generate`):**
+- `prompt`: Max 1000 characters
+- `temperature`: 0-2
+- `top_p`: 0-1
+- `max_tokens`: 1-16384
+
+**Local Routes (`/local/generate`):**
+- `prompt`: Non-empty, max 1000 characters
+- `temperature`: 0-2
+- `top_p`: 0-1
+- `max_tokens`: 1-2000
+
+**Example Error Response:**
+
+```json
+{
+  "error": {
+    "code": "INVALID_VALUE",
+    "message": "Temperature must be between 0 and 2",
+    "status": 422,
+    "field": "temperature",
+    "details": {
+      "min": 0,
+      "max": 2,
+      "received": 3.5
+    }
+  }
+}
+```
+
+## API Security & Reliability
+
+### Rate Limiting
+
+Rate limits protect the API from abuse and ensure fair usage:
+
+| Endpoint | Rate Limit | Window |
+|----------|-----------|--------|
+| `/generate` (OpenAI) | 10 requests | per minute |
+| `/local/generate` | 20 requests | per minute |
+| `/health` | 30 requests | per minute |
+
+**When rate limited (HTTP 429):**
+
+```json
+{
+  "error": "Rate limit exceeded: 10 per 1 minute"
+}
+```
+
+**Best Practices:**
+- Implement exponential backoff when receiving 429 errors
+- Cache responses when possible
+- Use streaming for long-running requests
+
+### Timeout & Retry
+
+OpenAI API calls include automatic timeout and retry mechanisms:
+
+**Timeout Configuration:**
+- Connection timeout: 10 seconds
+- Read timeout: 20 seconds
+- Write timeout: 10 seconds
+
+**Retry Strategy:**
+- Maximum retries: 3 attempts
+- Strategy: Exponential backoff (1s → 2s → 4s → 8s)
+- Retries on: Network errors, timeouts, server errors (5xx)
+
+**Example retry sequence:**
+
+```
+Attempt 1: Failed (timeout) → Wait 1 second
+Attempt 2: Failed (connection error) → Wait 2 seconds
+Attempt 3: Success ✓
+```
+
+If all retries fail, returns HTTP 500 with error details.
+
 ## Docker Deployment
 
 ### Using Docker Compose
@@ -556,6 +678,9 @@ This ensures the service responds to both IPv4 and IPv6 addresses.
 - **Transformers**: Hugging Face library for local model support
 - **PyTorch**: Deep learning framework for model inference
 - **TinyLlama**: Lightweight 1.1B parameter chat model
+- **httpx**: HTTP client with timeout support
+- **tenacity**: Retry mechanism with exponential backoff
+- **slowapi**: Rate limiting middleware for FastAPI
 - **Docker**: Containerization
 - **Pydantic**: Data validation and settings management
 
@@ -565,10 +690,13 @@ This ensures the service responds to both IPv4 and IPv6 addresses.
 - [ ] AI Agents framework
 - [ ] Vector database integration
 - [ ] Authentication & authorization
-- [ ] Rate limiting
+- [x] Rate limiting
 - [ ] Caching layer
 - [ ] Monitoring & logging
 - [ ] Multi-model routing
+- [x] Error handling with unified response format
+- [x] Input validation
+- [x] Timeout and retry mechanisms
 
 ---
 

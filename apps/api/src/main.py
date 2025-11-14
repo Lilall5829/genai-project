@@ -4,8 +4,14 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from .routes import openai_routes, local_routes
 from .exceptions import APIException, NotFoundError
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 app = FastAPI()
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.exception_handler(APIException)
 async def api_exception_handler(request: Request, exc: APIException):
@@ -93,6 +99,7 @@ def root():
     return {"message": "GenAI API Service", "docs": "/docs"}
 
 @app.get("/health")
-def health():
+@limiter.limit("10/minute")
+def health(request: Request):
     return {"status": "ok"}
 

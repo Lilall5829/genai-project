@@ -1,19 +1,26 @@
 # GenAI Project Dependencies
 # Main requirements for all services
+# - For local models: pip install -r requirements-local.txt
 
 # API Service
 fastapi
 uvicorn[standard]
 python-dotenv
 openai
+httpx>=0.24.0        # HTTP client with timeout support
+tenacity>=8.2.0      # Retry decorator
+slowapi>=0.1.9       # Rate limiting for FastAPI
 
-# Optional Dependencies:
-# - For local models: pip install -r requirements-local.txt
-
-# Add other services dependencies here as needed
 # RAG Service
-# ...
+langchain>=0.1.0
+langchain-openai>=0.0.2
+langchain-community>=0.0.10
+faiss-cpu>=1.7.4     # Vector similarity search (CPU version)
+sentence-transformers>=2.2.0  # Text embeddings
+pypdf>=3.17.0        # PDF document processing
+python-multipart     # File upload support
 
 # Agents Service
-# ...
 
+# Common Service
+python-dotenv

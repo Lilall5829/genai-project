@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 python-dotenv
 openai
+httpx>=0.24.0        # HTTP client with timeout support
+tenacity>=8.2.0      # Retry decorator
